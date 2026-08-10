@@ -38,6 +38,8 @@
         "im:history",
         "im:read",
         "im:write",
+        "mpim:history",
+        "mpim:read",
         "users:read"
       ]
     }
@@ -50,7 +52,8 @@
         "assistant_thread_started",
         "message.channels",
         "message.groups",
-        "message.im"
+        "message.im",
+        "message.mpim"
       ]
     },
     "interactivity": {
