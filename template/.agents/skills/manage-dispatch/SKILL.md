@@ -1,16 +1,16 @@
 ---
-name: manage-bclaw
+name: manage-dispatch
 description: >
-  Manage a running ECS (EC2 launch type) bclaw. Five modes: (1) Overlay — push the
-  repo's agent_home/ onto the bclaw's ~/.hermes (EBS-backed) to update
+  Manage a running ECS (EC2 launch type) dispatch. Five modes: (1) Overlay — push the
+  repo's agent_home/ onto the dispatch's ~/.hermes (EBS-backed) to update
   skills, memories, system prompt, or personas without a redeploy (via ECS
-  Exec); (2) Run — execute arbitrary commands on the live bclaw for inspection,
+  Exec); (2) Run — execute arbitrary commands on the live dispatch for inspection,
   debugging, or one-off operations (via ECS Exec); (3) Merge-config — key-level merge of agent_home/config.yaml into live config.yaml; (4) Upgrade image — roll
-  the running bclaw onto a new ghcr.io/boldblackai/harness tag by bumping the
+  the running dispatch onto a new ghcr.io/boldblackai/harness tag by bumping the
   HarnessImageTag stack parameter and redeploying (no image rebuild);
   (5) Host — retrieve a stuck container instance's console output or force a
   wedged instance to replace itself, scoped to the claw's instances via
-  aws:ResourceTag/ClawName. Companion to setup-bclaw / teardown-bclaw.
+  aws:ResourceTag/ClawName. Companion to setup-dispatch / teardown-dispatch.
 ---
 
 # Manage Harness ECS on EC2
@@ -54,13 +54,13 @@ common case); for `config.yaml` changes, default to **Merge-config**.
 ## Prerequisites
 
 1. **The claw is already set up and RUNNING.** This skill manages a live
-   claw; it does not create one (use `setup-bclaw` first).
+   claw; it does not create one (use `setup-dispatch` first).
    Verify the task is `RUNNING` in the first step of either mode.
 
 2. **ECS Exec permissions on the caller.** `aws ecs execute-command` uses SSM
    Session Manager. The deployer principal (the key in `.env`) needs
    `ecs:ExecuteCommand` (on the cluster + task) plus the four `ssmmessages:*`
-   channel actions. These are already in the `bclaw-deploy` policy (`ECSExec`
+   channel actions. These are already in the `dispatch-deploy` policy (`ECSExec`
    + `SSMMessages` statements) — no separate addition needed. If the caller
    still gets an `AccessDeniedException` naming `ssmmessages` or
    `ecs:ExecuteCommand`, re-attach the policy in the console (file edits
@@ -98,12 +98,12 @@ All `aws` commands in this skill assume this shell state.
 
 ## Shared first step: connect to the claw
 
-Both modes start here. Collect the **claw name** (default `bclaw`) and
+Both modes start here. Collect the **claw name** (default `dispatch`) and
 **region** (default `us-east-1`) via `ask_user_question`. Then verify the
 claw is live and ECS Exec works.
 
 ```bash
-CLAW_NAME=bclaw
+CLAW_NAME=dispatch
 AWS_REGION=us-east-1
 ```
 
@@ -588,7 +588,7 @@ base64 lines (dropping the `Session Manager` / `Starting session` lines).
 
 ```bash
 uv run --no-project --with 'ruamel.yaml==0.19.1' python3 \
-  .agents/skills/manage-bclaw/merge_config.py \
+  .agents/skills/manage-dispatch/merge_config.py \
   --local /workspace/agent_home/config.yaml \
   --remote /tmp/claw_config.current \
   --remote-mtime "${REMOTE_MTIME:-0}" \
@@ -767,7 +767,7 @@ Edit the `HarnessImageTag` default so the choice survives the next deploy — a
 version bump is just this edit plus the redeploy in Step 4, then commit:
 
 ```
-# .agents/skills/setup-bclaw/template.yaml
+# .agents/skills/setup-dispatch/template.yaml
 HarnessImageTag:
   Type: String
   Default: hermes-1.9.4     # ← was hermes-1.9.3
@@ -782,7 +782,7 @@ HarnessImageTag:
 
 ```bash
 aws cloudformation deploy \
-  --template-file .agents/skills/setup-bclaw/template.yaml \
+  --template-file .agents/skills/setup-dispatch/template.yaml \
   --stack-name "$CLAW_NAME" \
   --region "$AWS_REGION" \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -847,7 +847,7 @@ to register to ECS, it is wedged but passing health checks, or you need its boot
 log. Modes 1–4 all assume a RUNNING task to ECS Exec into; Mode 5 is the path
 when there is no task (or the task is not the issue).
 
-Both actions are scoped by the `bclaw-deploy` policy's `EC2InstanceOps`
+Both actions are scoped by the `dispatch-deploy` policy's `EC2InstanceOps`
 statement to the claw's own instances (`aws:ResourceTag/ClawName`), so they
 cannot touch co-tenant instances in the same account.
 
@@ -856,7 +856,7 @@ cannot touch co-tenant instances in the same account.
 - **Shell with mise + AWS creds** (same as the other modes). All
   `aws` commands below assume this shell state.
 - **The claw's region** (`AWS_REGION`, default `us-east-1`) and **claw name**
-  (`CLAW_NAME`, default `bclaw`). The container instance is tagged
+  (`CLAW_NAME`, default `dispatch`). The container instance is tagged
   `ClawName=<claw name>` and `Name=<claw name>-instance`.
 
 Find the claw's running container instance:
@@ -990,8 +990,8 @@ aws ec2 terminate-instances --instance-ids "$INSTANCE_ID" --dry-run --region "$A
   presigned URL carries no credentials, so no task-role S3 permissions are
   needed.
 
-- **Companion skills.** `setup-bclaw` (create the claw),
-  `teardown-bclaw` (destroy it). This skill sits between them:
+- **Companion skills.** `setup-dispatch` (create the claw),
+  `teardown-dispatch` (destroy it). This skill sits between them:
   Modes 1 (Overlay), 2 (Run), and 3 (Merge-config) mutate or inspect the live claw over ECS Exec without
   touching the CloudFormation stack or task definition; Mode 4 (Upgrade image)
   performs an in-place stack update that re-renders the task definition and

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] - 2026-08-15
+
+### Summary
+
+The product is renamed: the npm package is now `@boldblackai/create-dispatch` (the GitHub repo becomes `boldblackai/create-dispatch`; the old URL redirects). The generator's rename token is now `dispatch` — `npx @boldblackai/create-dispatch <name>` produces a skeleton with the SSM namespace `/dispatch/`, KMS alias `alias/dispatch-ssm`, and the `setup-dispatch` / `manage-dispatch` / `teardown-dispatch` skills. The advertised npm-init shorthand is corrected to `npm init @boldblackai/dispatch <name>` (npm prepends `create-` itself; the previous `@boldblackai/bclaw` line resolved to the old package). Already-deployed agents are **not** affected — renames apply to new generations only; existing installs keep working and can migrate at any time by running `npx @boldblackai/create-dispatch <name>`.
+
+### Changes
+
+- 634499e chore(meta): rename package identity, release plumbing, and repo self-references
+- 985b5bc feat(template): sweep rename token bclaw → dispatch across template/
+- 9469a8e feat(cli,generator): rename rename-token and CLI identity bclaw → dispatch
+- 9db5e0d test: sweep golden test tokens bclaw → dispatch
+
 ## [1.0.2] - 2026-08-01
 
 ### Summary

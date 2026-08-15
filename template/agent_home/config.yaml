@@ -1,8 +1,8 @@
 # aws_ssm secret source for Hermes. Pushed into the live ~/.hermes/config.yaml
-# by the manage-bclaw skill's Merge-config mode (run once during setup); the
+# by the manage-dispatch skill's Merge-config mode (run once during setup); the
 # overlay excludes config.yaml on purpose. The aws_ssm plugin
 # (hermes-aws-ssm-secret-source, installed during setup) resolves the
-# explicitly-listed /bclaw/* SecureString params into env vars at the first
+# explicitly-listed /dispatch/* SecureString params into env vars at the first
 # gateway start, using the TaskRole's read-ssm-params grant. The plugin is
 # mapped-only: only the params listed under `env:` are fetched, and only
 # SecureString params are accepted (missing or non-SecureString entries warn
@@ -16,10 +16,10 @@ secrets:
     override_existing: true # rotate centrally without a .env edit
     region: ""              # empty = botocore default chain (AWS_REGION / profile / task role)
     env:
-      SLACK_BOT_TOKEN: /bclaw/SLACK_BOT_TOKEN
-      SLACK_APP_TOKEN: /bclaw/SLACK_APP_TOKEN
-      SLACK_ALLOWED_USERS: /bclaw/SLACK_ALLOWED_USERS
-      SLACK_HOME_CHANNEL: /bclaw/SLACK_HOME_CHANNEL
-      OPENROUTER_API_KEY: /bclaw/OPENROUTER_API_KEY
-      ANTHROPIC_API_KEY: /bclaw/ANTHROPIC_API_KEY
-      ZAI_API_KEY: /bclaw/ZAI_API_KEY
+      SLACK_BOT_TOKEN: /dispatch/SLACK_BOT_TOKEN
+      SLACK_APP_TOKEN: /dispatch/SLACK_APP_TOKEN
+      SLACK_ALLOWED_USERS: /dispatch/SLACK_ALLOWED_USERS
+      SLACK_HOME_CHANNEL: /dispatch/SLACK_HOME_CHANNEL
+      OPENROUTER_API_KEY: /dispatch/OPENROUTER_API_KEY
+      ANTHROPIC_API_KEY: /dispatch/ANTHROPIC_API_KEY
+      ZAI_API_KEY: /dispatch/ZAI_API_KEY

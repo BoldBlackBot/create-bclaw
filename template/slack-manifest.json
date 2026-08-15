@@ -4,8 +4,8 @@
     "minor_version": 1
   },
   "display_information": {
-    "name": "bclaw",
-    "description": "bclaw",
+    "name": "dispatch",
+    "description": "dispatch",
     "background_color": "#1a1a2e"
   },
   "features": {
@@ -15,7 +15,7 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "bclaw",
+      "display_name": "dispatch",
       "always_online": true
     },
     "assistant_view": {

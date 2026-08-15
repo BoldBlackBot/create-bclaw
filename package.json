@@ -1,13 +1,13 @@
 {
-  "name": "@boldblackai/create-bclaw",
-  "version": "1.0.2",
-  "description": "CLI to generate bclaw repositories",
+  "name": "@boldblackai/create-dispatch",
+  "version": "1.1.0",
+  "description": "CLI to generate dispatch agent repositories",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
   "bin": {
-    "create-bclaw": "dist/cli.js"
+    "create-dispatch": "dist/cli.js"
   },
   "packageManager": "pnpm@11.9.0",
   "files": [
@@ -45,7 +45,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/boldblackai/create-bclaw.git"
+    "url": "git+https://github.com/boldblackai/create-dispatch.git"
   },
-  "homepage": "https://bclaw.sh"
+  "homepage": "https://dispatch.boldblack.ai"
 }

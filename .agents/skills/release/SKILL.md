@@ -1,9 +1,9 @@
 ---
 name: release
-description: Automate releasing the @boldblackai/create-bclaw npm package. Use this skill whenever the user wants to cut a release, publish a new version, bump the version, tag a release, update the CHANGELOG, or run npm publish. Triggers on phrases like "release version X", "cut a release", "publish", "bump to X.X.X", "tag this release", "release the project", or any combination of version bumping + publishing intent. Always use this skill for release work — don't attempt ad-hoc release steps without it.
+description: Automate releasing the @boldblackai/create-dispatch npm package. Use this skill whenever the user wants to cut a release, publish a new version, bump the version, tag a release, update the CHANGELOG, or run npm publish. Triggers on phrases like "release version X", "cut a release", "publish", "bump to X.X.X", "tag this release", "release the project", or any combination of version bumping + publishing intent. Always use this skill for release work — don't attempt ad-hoc release steps without it.
 ---
 
-# Release Skill for `@boldblackai/create-bclaw`
+# Release Skill for `@boldblackai/create-dispatch`
 
 Automates the full release pipeline: pre-flight checks → version bump → CHANGELOG → verify → build → open release PR → (maintainer merges) → CI auto-tags, publishes to npm (OIDC), creates GitHub release.
 
@@ -11,7 +11,7 @@ Automates the full release pipeline: pre-flight checks → version bump → CHAN
 >
 > **Release model:** The trust boundary is "can merge a PR to main" = "can release." The agent has zero upstream write access — it opens the PR from its fork (BoldBlackBot); the maintainer's squash-merge triggers everything.
 >
-> **Prerequisite (one-time, manual on npmjs.com):** Configure the trusted publisher for `@boldblackai/create-bclaw` under Settings → Trusted Publisher → GitHub Actions: org=`boldblackai`, repo=`create-bclaw`, workflow filename=`tag-on-merge.yml`. Then under Settings → Publishing access, select "Require two-factor authentication and disallow tokens" (recommended) — OIDC publishes are unaffected by this setting.
+> **Prerequisite (one-time, manual on npmjs.com):** Configure the trusted publisher for `@boldblackai/create-dispatch` under Settings → Trusted Publisher → GitHub Actions: org=`boldblackai`, repo=`create-dispatch`, workflow filename=`tag-on-merge.yml`. Then under Settings → Publishing access, select "Require two-factor authentication and disallow tokens" (recommended) — OIDC publishes are unaffected by this setting.
 
 ## Step 1: Pre-flight checks (abort on failure)
 
@@ -122,7 +122,7 @@ git commit -m "release v<version>"
 Ensure a fork remote exists (for the agent's bot account):
 
 ```bash
-git remote add fork https://github.com/BoldBlackBot/create-bclaw.git 2>/dev/null || true
+git remote add fork https://github.com/BoldBlackBot/create-dispatch.git 2>/dev/null || true
 ```
 
 Push the release branch:
@@ -135,7 +135,7 @@ Open the PR — the squash merge commit message (`release v<version>`) is the se
 
 ```bash
 gh pr create \
-  --repo boldblackai/create-bclaw \
+  --repo boldblackai/create-dispatch \
   --head BoldBlackBot:release/v<version> \
   --base main \
   --title "release v<version>" \
@@ -166,19 +166,19 @@ After the PR is squash-merged, the merge commit (`release v<version> (#N)`) trig
 ### 11a: Verify tag-on-merge ran (tag + npm + release)
 
 ```bash
-gh run list --repo boldblackai/create-bclaw --workflow tag-on-merge.yml --limit 1
+gh run list --repo boldblackai/create-dispatch --workflow tag-on-merge.yml --limit 1
 ```
 
 Confirm the workflow succeeded. If it failed, check logs:
 
 ```bash
-gh run view <run-id> --repo boldblackai/create-bclaw --log-failed
+gh run view <run-id> --repo boldblackai/create-dispatch --log-failed
 ```
 
 Once the workflow succeeds, verify the package landed on npm **with provenance attestations**:
 
 ```bash
-npm view @boldblackai/create-bclaw@<version> dist --json
+npm view @boldblackai/create-dispatch@<version> dist --json
 ```
 
 Confirm the output includes an `attestations` field (not just `signatures`). If `attestations` is missing, the publish did not generate provenance — investigate before continuing.

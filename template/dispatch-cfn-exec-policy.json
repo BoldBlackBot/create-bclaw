@@ -12,7 +12,7 @@
       "Resource": "*",
       "Condition": {
         "StringLike": {
-          "aws:RequestTag/Name": "bclaw*"
+          "aws:RequestTag/Name": "dispatch*"
         }
       }
     },
@@ -50,7 +50,7 @@
       "Resource": "*",
       "Condition": {
         "StringLike": {
-          "aws:ResourceTag/Name": "bclaw*"
+          "aws:ResourceTag/Name": "dispatch*"
         }
       }
     },
@@ -61,7 +61,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestTag/Name": "bclaw-data"
+          "aws:RequestTag/Name": "dispatch-data"
         }
       }
     },
@@ -85,7 +85,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:RequestTag/ClawName": "bclaw"
+          "aws:RequestTag/ClawName": "dispatch"
         }
       }
     },
@@ -101,7 +101,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:ResourceTag/ClawName": "bclaw"
+          "aws:ResourceTag/ClawName": "dispatch"
         }
       }
     },
@@ -127,7 +127,7 @@
         "iam:ListAttachedRolePolicies",
         "iam:UpdateAssumeRolePolicy"
       ],
-      "Resource": "arn:aws:iam::*:role/bclaw-*"
+      "Resource": "arn:aws:iam::*:role/dispatch-*"
     },
     {
       "Sid": "IAMInstanceProfiles",
@@ -139,15 +139,15 @@
         "iam:AddRoleToInstanceProfile",
         "iam:RemoveRoleFromInstanceProfile"
       ],
-      "Resource": "arn:aws:iam::*:instance-profile/bclaw-*"
+      "Resource": "arn:aws:iam::*:instance-profile/dispatch-*"
     },
     {
       "Sid": "PassRole",
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": [
-        "arn:aws:iam::*:role/bclaw-*",
-        "arn:aws:iam::*:instance-profile/bclaw-*"
+        "arn:aws:iam::*:role/dispatch-*",
+        "arn:aws:iam::*:instance-profile/dispatch-*"
       ]
     },
     {
@@ -162,9 +162,9 @@
         "ecs:RegisterTaskDefinition"
       ],
       "Resource": [
-        "arn:aws:ecs:*:*:cluster/bclaw",
-        "arn:aws:ecs:*:*:service/bclaw/*",
-        "arn:aws:ecs:*:*:task-definition/bclaw:*"
+        "arn:aws:ecs:*:*:cluster/dispatch",
+        "arn:aws:ecs:*:*:service/dispatch/*",
+        "arn:aws:ecs:*:*:task-definition/dispatch:*"
       ]
     },
     {
@@ -211,7 +211,7 @@
         "logs:ListTagsForResource",
         "logs:UntagResource"
       ],
-      "Resource": "arn:aws:logs:*:*:log-group:/ecs/bclaw*"
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/dispatch*"
     },
     {
       "Sid": "SSMPublicEcsAmi",

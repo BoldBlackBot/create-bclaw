@@ -7,7 +7,7 @@ Related RFC: none (journal-only cycle).
 
 ## Goal
 
-Tighten two areas of `template/bclaw-cfn-exec-policy.json`:
+Tighten two areas of `template/dispatch-cfn-exec-policy.json`:
 
 1. **`ECSWrite`** — the `Resource` array ends with `"*"`, which supersedes the
    three specific ARNs above it, so `ecs:DeleteCluster` (and every other action
@@ -15,7 +15,7 @@ Tighten two areas of `template/bclaw-cfn-exec-policy.json`:
    AWS service-authorization reference shows 6 of the 7 actions support
    resource-level perms; only `DeregisterTaskDefinition` requires `*`. Fix:
    split into `ECSWriteScoped` (the 6 actions on the existing
-   `cluster/bclaw` / `service/bclaw/*` / `task-definition/bclaw:*` ARNs, **no
+   `cluster/dispatch` / `service/dispatch/*` / `task-definition/dispatch:*` ARNs, **no
    trailing `*`**) + `ECSWriteGlobal` (`DeregisterTaskDefinition` alone on `*`).
 
 2. **`EC2NetworkingCreate`** — all 6 creates + a broad `CreateTags` on `*`

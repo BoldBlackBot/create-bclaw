@@ -1,12 +1,12 @@
 ---
-name: teardown-bclaw
+name: teardown-dispatch
 description: >
-  Tears down a Hermes Agent bclaw on ECS (EC2 launch type) and all associated
+  Tears down a Hermes Agent dispatch on ECS (EC2 launch type) and all associated
   AWS resources. Follows a reverse-order sequence: scale to 0 → delete
   CloudFormation stack (VPC, EBS volume [retained], ASG, ECS, IAM) → delete
   retained EBS → delete orphaned VPC → delete SSM secrets → delete the
-  CloudFormation service role (`bclaw-cfn-exec`). Use when asked to destroy,
-  teardown, or decommission the bclaw. Companion to setup-bclaw.
+  CloudFormation service role (`dispatch-cfn-exec`). Use when asked to destroy,
+  teardown, or decommission the dispatch. Companion to setup-dispatch.
 ---
 
 # Teardown Harness ECS on EC2
@@ -18,7 +18,7 @@ service/task/cluster, the stack's IAM roles (exec, task, container instance +
 instance profile), the log group, and the standalone EBS data volume. The EBS
 volume is retained by the stack's `DeletionPolicy: Retain` and must be deleted
 explicitly. SSM secrets are not stack-owned and are deleted separately. The
-CloudFormation service role (`bclaw-cfn-exec`) is also not stack-owned — it is
+CloudFormation service role (`dispatch-cfn-exec`) is also not stack-owned — it is
 created out-of-band in setup Phase 0 (the stack cannot create the role it
 assumes to create itself), so it survives `delete-stack` and is deleted here as
 the final step, after the stack is gone.
@@ -41,7 +41,7 @@ destroy the claw. This is destructive and irreversible — all EBS data
 (sessions, memories, skills, the SQLite databases, gh credentials)
 will be lost unless the user backs it up first.
 
-Also collect the **claw name** (default `bclaw`) and **region** (default
+Also collect the **claw name** (default `dispatch`) and **region** (default
 `us-east-1`) via `ask_user_question`. Store as:
 
 ```bash
@@ -129,7 +129,7 @@ container instance), security group, subnet, route table, internet gateway, and
 VPC. The standalone EBS volume is left behind (subject to the retain policy —
 see Phase 3).
 
-Delete the stack, passing `--role-arn bclaw-cfn-exec` so CloudFormation assumes
+Delete the stack, passing `--role-arn dispatch-cfn-exec` so CloudFormation assumes
 the service role (the same role the deploys use) to perform the deletions. The
 service role is itself deleted in Phase 6, so it must be passed here while it
 still exists and is still needed:
@@ -164,9 +164,9 @@ aws cloudformation wait stack-delete-complete \
     If they're empty/gone but the stack is stuck on handler confirmation,
     re-run `delete-stack --deletion-mode FORCE_DELETE_STACK`.
   - **IAM roles (`NoSuchEntity`).** The exec/task/container-instance roles
-    (`bclaw-*`) can be deleted out from under the handler (e.g. a prior partial
+    (`dispatch-*`) can be deleted out from under the handler (e.g. a prior partial
     teardown), so the handler 404s confirming a resource that no longer exists.
-    Verify with `aws iam get-role` for each `bclaw-*` role (returns
+    Verify with `aws iam get-role` for each `dispatch-*` role (returns
     `NoSuchEntity` if gone).
 
   In both cases the resources are confirmed gone via direct CLI, but the stack
@@ -213,7 +213,7 @@ echo "volume state: $STATE"
 
 If `in-use`, the instance may still be terminating — wait for it, or
 force-detach (the deployer policy scopes `ec2:DetachVolume` by
-`aws:ResourceTag/Name: bclaw-data`, which this volume carries):
+`aws:ResourceTag/Name: dispatch-data`, which this volume carries):
 
 ```bash
 aws ec2 detach-volume --volume-id "$EBS_ID" --region "$AWS_REGION" --force || true
@@ -233,8 +233,8 @@ aws ec2 delete-volume \
 > can find + reattach it by tag.
 
 > **EBS delete permissions are tag-conditioned, not absent.** The deployer
-> policy scopes `ec2:DeleteVolume` via `aws:ResourceTag/Name: bclaw-data`, so
-> volumes tagged `Name=bclaw-data` (all of them, regardless of which stack
+> policy scopes `ec2:DeleteVolume` via `aws:ResourceTag/Name: dispatch-data`, so
+> volumes tagged `Name=dispatch-data` (all of them, regardless of which stack
 > version created them) are within scope. Try the `delete-volume` command
 > directly. If it fails with `AccessDeniedException`, note the volume IDs in
 > the final report for manual console cleanup. To delete multiple retained
@@ -324,8 +324,8 @@ aws ec2 delete-vpc --vpc-id "$VPC_ID" --region "$AWS_REGION" \
 > won't clear, delete it from the console.
 
 > **The deployer can delete only claw-tagged networking.** Every resource
-> deleted above carries a `Name=bclaw*` tag, which is what the policy's
-> `EC2NetworkingManage` statement (`aws:ResourceTag/Name: bclaw*`) keys on. The
+> deleted above carries a `Name=dispatch*` tag, which is what the policy's
+> `EC2NetworkingManage` statement (`aws:ResourceTag/Name: dispatch*`) keys on. The
 > read-only `Describe*` calls are unscoped, so finding the VPC always works;
 > the deletes succeed only against the claw's own resources.
 
@@ -341,16 +341,16 @@ window — that only applies to Secrets Manager).
 
 > **The deployer policy grants the deletes directly.** Its `SSMSecrets`
 > statement allows `ssm:DeleteParameter` on
-> `arn:aws:ssm:*:*:parameter/bclaw/*`, so the deletes below succeed without a
+> `arn:aws:ssm:*:*:parameter/dispatch/*`, so the deletes below succeed without a
 > console fallback. Only fall back to console cleanup if a delete fails with
 > `AccessDeniedException` for a param outside that ARN scope.
 
 ```bash
-# Delete ALL params under /bclaw/ — covers whichever provider key
+# Delete ALL params under /dispatch/ — covers whichever provider key
 # (OPENROUTER_API_KEY | ANTHROPIC_API_KEY | ZAI_API_KEY) this deploy used.
 # The namespace is one-claw-per-account, so this is the full secret set.
 aws ssm describe-parameters \
-  --parameter-filters "Key=Name,Option=BeginsWith,Values=/bclaw/" \
+  --parameter-filters "Key=Name,Option=BeginsWith,Values=/dispatch/" \
   --region "$AWS_REGION" \
   --query 'Parameters[].Name' --output text | tr '\t' '\n' | while read -r p; do
   [ -n "$p" ] || continue
@@ -366,7 +366,7 @@ Verify the namespace is empty:
 
 ```bash
 aws ssm describe-parameters \
-  --parameter-filters "Key=Name,Option=BeginsWith,Values=/bclaw/" \
+  --parameter-filters "Key=Name,Option=BeginsWith,Values=/dispatch/" \
   --region "$AWS_REGION" \
   --query 'Parameters[].Name' --output table
 ```
@@ -379,7 +379,7 @@ Expected: an empty list.
 
 **Gate: stack is `DELETE_COMPLETE` (Phase 2).**
 
-`bclaw-cfn-exec` is the role CloudFormation assumed during every deploy and the
+`dispatch-cfn-exec` is the role CloudFormation assumed during every deploy and the
 Phase 2 stack delete. It is not stack-owned, so `delete-stack` leaves it behind
 — it must be removed explicitly, and **last** (it was needed during the stack
 delete, and the deployer's only IAM-create powers now target this one literal
@@ -422,7 +422,7 @@ aws ec2 describe-volumes --region "$AWS_REGION" \
 
 # No remaining SSM params
 aws ssm describe-parameters \
-  --parameter-filters "Key=Name,Option=BeginsWith,Values=/bclaw/" \
+  --parameter-filters "Key=Name,Option=BeginsWith,Values=/dispatch/" \
   --region "$AWS_REGION" --query 'Parameters[].Name' --output text | grep -q . \
   && echo "ssm: STILL EXISTS" || echo "ssm: gone"
 
@@ -469,10 +469,10 @@ Report to the user:
   irreversible. If the user might redeploy, have them record the values before
   Phase 5 — they'll need to re-write them during setup.
 
-- **The SSM namespace is hardcoded (`/bclaw/`), not derived from `ClawName`.** Secrets live at
-  `/bclaw/<KEY>` so the deployer's IAM policy can be scoped to
-  `parameter/bclaw/*` (see the setup skill's Phase 0). With one claw per
-  account, Phase 5 deleting `/bclaw/*` removes the account's entire secret
+- **The SSM namespace is hardcoded (`/dispatch/`), not derived from `ClawName`.** Secrets live at
+  `/dispatch/<KEY>` so the deployer's IAM policy can be scoped to
+  `parameter/dispatch/*` (see the setup skill's Phase 0). With one claw per
+  account, Phase 5 deleting `/dispatch/*` removes the account's entire secret
   set — correct for a full teardown.
 
 - **Order matters.** Always scale to 0 (Phase 1) before deleting the stack
