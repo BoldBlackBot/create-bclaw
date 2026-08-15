@@ -53,7 +53,7 @@ jobs:
       - name: Publish to npm (OIDC trusted publishing)
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          if npm view "@boldblackai/create-bclaw@${VERSION}" dist --json >/dev/null 2>&1; then
+          if npm view "@boldblackai/create-dispatch@${VERSION}" dist --json >/dev/null 2>&1; then
             echo "Version $VERSION already published, skipping"
           else
             npm publish

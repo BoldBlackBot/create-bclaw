@@ -19,10 +19,10 @@ Significant changes, architectural decisions, and new features should be propose
 
 ## Overview
 
-This repo is `@boldblackai/create-bclaw`, an `npx`-distributed CLI that
+This repo is `@boldblackai/create-dispatch`, an `npx`-distributed CLI that
 generates a renamed skeleton of a Hermes Agent claw repo. Running
-`npx @boldblackai/create-bclaw foo` produces a `foo/` directory whose contents
-match the bundled `template/` snapshot except every lowercase `bclaw` reference
+`npx @boldblackai/create-dispatch foo` produces a `foo/` directory whose contents
+match the bundled `template/` snapshot except every lowercase `dispatch` reference
 — file contents and file/directory names, including the SSM namespace, IAM
 scopes, and KMS alias — is renamed to `foo`. A second literal token, `us-east-1`,
 is substituted with the chosen AWS region (`--region`, default `us-east-1`) so
@@ -64,10 +64,10 @@ steps and current-state facts only.
 ## Layout: Generator Repo + Integration Repo
 
 Since it doesn't make sense to deploy changes made in /workspace (its just templates + generator), we use an integration
-repository instead (`/alt/integration`), which has AWS creds and represents a live, deployed bclaw we can make changes to.
+repository instead (`/alt/integration`), which has AWS creds and represents a live, deployed dispatch agent we can make changes to.
 
-- `/workspace` (no aws access): the `create-bclaw` project, it creates project skeletons from `template/`
-- `/alt/integration` (aws access via mise): a project created from `create-bclaw`; we edit and iterate on THIS repo, and
+- `/workspace` (no aws access): the `create-dispatch` project, it creates project skeletons from `template/`
+- `/alt/integration` (aws access via mise): a project created from `create-dispatch`; we edit and iterate on THIS repo, and
 integrate ("port back") changes back into `/workspace/template/` once we verify they work.
 
 ### Workflow conventions
@@ -80,11 +80,11 @@ integrate ("port back") changes back into `/workspace/template/` once we verify 
 
 ### Integration cycles
 
-Working through a change to bclaw templates (skills, policies, CFN, etc), such as implementing a proposed RFC, goes through what
+Working through a change to dispatch templates (skills, policies, CFN, etc), such as implementing a proposed RFC, goes through what
 is known as an "Integration Cycle". We always start a cycle by creating an integration journal and applying/testing our changes into `/alt/integration`.
 
 Once I (and only I) confirm the changes work in the `/alt/integration` project (this requires a deploy or a possible regeneration), we can integrate our changes back into
-the `create-bclaw` templates under `/workspace` and run the golden test. We can use the integration cycle journal to help us integrate our changes.
+the `create-dispatch` templates under `/workspace` and run the golden test. We can use the integration cycle journal to help us integrate our changes.
 
 #### Port-back: diff `/alt/integration` against `template/`
 
@@ -112,7 +112,7 @@ is scoped to what a generated cluster inherits from `template/`.
 
 #### Integration cycle journal Format
 
-To aid in porting back changes, keep a journal of issues we encountered during an integration cycle. The journal lives in the `journal:create-bclaw:` namespace on the **corkboard** (DokuWiki), as a page like `journal:create-bclaw:YYYY-MM-DD_short_title`, authored in DokuWiki syntax — Markdown renders as literal text, so use wiki markup (see the corkboard skill) — in journal-style append-only format:
+To aid in porting back changes, keep a journal of issues we encountered during an integration cycle. The journal lives in the `journal:create-dispatch:` namespace on the **corkboard** (DokuWiki), as a page like `journal:create-dispatch:YYYY-MM-DD_short_title`, authored in DokuWiki syntax — Markdown renders as literal text, so use wiki markup (see the corkboard skill) — in journal-style append-only format:
 
 - `====== Title ======` — short descriptive title (page H1)
 - `**Date:**` — date (ISO format)
@@ -121,7 +121,7 @@ To aid in porting back changes, keep a journal of issues we encountered during a
 
 ONLY add issues, do not talk about plans or implementation details (the rfc is for that, just link to it).
 
-Once the port-back is complete and the golden test passes, **set the journal's status to `Done` and leave it in place** — it now lives permanently in the `journal:create-bclaw:` namespace as a record of the cycle, so do not delete it.
+Once the port-back is complete and the golden test passes, **set the journal's status to `Done` and leave it in place** — it now lives permanently in the `journal:create-dispatch:` namespace as a record of the cycle, so do not delete it.
 
 ## Tool Versions
 
