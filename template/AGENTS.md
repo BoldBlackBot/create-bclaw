@@ -1,7 +1,7 @@
-# bclaw
+# dispatch
 
 
-`bclaw` is a Hermes Agent claw (a long-running gateway) deployed as a Slack
+`dispatch` is a Hermes Agent claw (a long-running gateway) deployed as a Slack
 socket-mode bot. It is outbound-only — no load balancer, no inbound ports.
 
 ## Search
@@ -28,9 +28,9 @@ You can use web-search-prime to look things up that aren't obvious in the reposi
 
 - Deploys to **AWS ECS (EC2 launch type)** — a single container instance in an
   Auto Scaling Group (`min=max=desired=1`) with a persistent **EBS data volume** —
-  managed by the `setup-bclaw` / `teardown-bclaw` agent skills in
+  managed by the `setup-dispatch` / `teardown-dispatch` agent skills in
   `.agents/skills/`. The CloudFormation template lives alongside the setup
-  skill at `.agents/skills/setup-bclaw/template.yaml`.
+  skill at `.agents/skills/setup-dispatch/template.yaml`.
 - No derived image is built. The signed upstream
   `ghcr.io/boldblackai/harness` image is deployed as-is — host bind-mounts on
   the EBS volume support the 4-way mount layout directly, so no custom
@@ -39,7 +39,7 @@ You can use web-search-prime to look things up that aren't obvious in the reposi
 
 ### AWS infrastructure
 
-- Stack name = claw name (default `bclaw`), region `us-east-1`.
+- Stack name = claw name (default `dispatch`), region `us-east-1`.
 - Dedicated VPC (10.0.0.0/16) with **1 public subnet in a single AZ** (EBS is
   zonal, so the volume, instance, and task all live in one AZ). The setup skill
   probes Graviton AZ availability via `describe-instance-type-offerings` and
@@ -52,10 +52,10 @@ You can use web-search-prime to look things up that aren't obvious in the reposi
   and mounts it by filesystem label on every boot, so data survives ASG instance
   replacement. SQLite's WAL mode needs a real local block device (it is unsafe
   on NFS), which is the reason state is on EBS.
-- Secrets are **SSM SecureString** parameters under the claw's `/bclaw/KEY`
+- Secrets are **SSM SecureString** parameters under the claw's `/dispatch/KEY`
   namespace, written by the user in setup Phase 3 (piranesi pattern). Not
   stack-owned, so they survive stack updates/deletes. A Hermes secret-source
-  plugin (`aws_ssm`, installed in setup Phase 5) resolves every `/bclaw/*`
+  plugin (`aws_ssm`, installed in setup Phase 5) resolves every `/dispatch/*`
   parameter into the gateway env at startup, using the TaskRole's SSM-read
   grant — so adding/rotating a key is an SSM write + restart, no redeploy. This
   carries the Slack tokens (`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`,

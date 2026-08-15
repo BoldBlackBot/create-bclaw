@@ -18,7 +18,7 @@
         "cloudformation:ExecuteChangeSet",
         "cloudformation:DeleteChangeSet"
       ],
-      "Resource": "arn:aws:cloudformation:*:*:stack/bclaw/*"
+      "Resource": "arn:aws:cloudformation:*:*:stack/dispatch/*"
     },
     {
       "Sid": "CloudFormationGlobalMeta",
@@ -80,7 +80,7 @@
       "Resource": "*",
       "Condition": {
         "StringLike": {
-          "aws:ResourceTag/Name": "bclaw*"
+          "aws:ResourceTag/Name": "dispatch*"
         }
       }
     },
@@ -94,7 +94,7 @@
       "Resource": "*",
       "Condition": {
         "StringEquals": {
-          "aws:ResourceTag/Name": "bclaw-data"
+          "aws:ResourceTag/Name": "dispatch-data"
         }
       }
     },
@@ -108,7 +108,7 @@
       "Resource": "arn:aws:ec2:*:*:instance/*",
       "Condition": {
         "StringEquals": {
-          "aws:ResourceTag/ClawName": "bclaw"
+          "aws:ResourceTag/ClawName": "dispatch"
         }
       }
     },
@@ -124,13 +124,13 @@
         "iam:GetRolePolicy",
         "iam:UpdateAssumeRolePolicy"
       ],
-      "Resource": "arn:aws:iam::*:role/bclaw-cfn-exec"
+      "Resource": "arn:aws:iam::*:role/dispatch-cfn-exec"
     },
     {
       "Sid": "PassRoleToCfn",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::*:role/bclaw-cfn-exec",
+      "Resource": "arn:aws:iam::*:role/dispatch-cfn-exec",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "cloudformation.amazonaws.com"
@@ -142,8 +142,8 @@
       "Effect": "Allow",
       "Action": "ecs:ExecuteCommand",
       "Resource": [
-        "arn:aws:ecs:*:*:cluster/bclaw",
-        "arn:aws:ecs:*:*:task/bclaw/*"
+        "arn:aws:ecs:*:*:cluster/dispatch",
+        "arn:aws:ecs:*:*:task/dispatch/*"
       ]
     },
     {
@@ -151,8 +151,8 @@
       "Effect": "Allow",
       "Action": "ecs:UpdateService",
       "Resource": [
-        "arn:aws:ecs:*:*:cluster/bclaw",
-        "arn:aws:ecs:*:*:service/bclaw/*"
+        "arn:aws:ecs:*:*:cluster/dispatch",
+        "arn:aws:ecs:*:*:service/dispatch/*"
       ]
     },
     {
@@ -182,7 +182,7 @@
       "Sid": "DenyDirectSSMSession",
       "Effect": "Deny",
       "Action": "ssm:StartSession",
-      "Resource": "arn:aws:ecs:*:*:task/bclaw/*"
+      "Resource": "arn:aws:ecs:*:*:task/dispatch/*"
     },
     {
       "Sid": "LogsRead",
@@ -192,7 +192,7 @@
         "logs:FilterLogEvents",
         "logs:GetLogEvents"
       ],
-      "Resource": "arn:aws:logs:*:*:log-group:/ecs/bclaw*"
+      "Resource": "arn:aws:logs:*:*:log-group:/ecs/dispatch*"
     },
     {
       "Sid": "SSMSecrets",
@@ -203,7 +203,7 @@
         "ssm:GetParameters",
         "ssm:DeleteParameter"
       ],
-      "Resource": "arn:aws:ssm:*:*:parameter/bclaw/*"
+      "Resource": "arn:aws:ssm:*:*:parameter/dispatch/*"
     },
     {
       "Sid": "KMSUseKey",
@@ -216,7 +216,7 @@
       "Resource": "*",
       "Condition": {
         "ForAnyValue:StringLike": {
-          "kms:ResourceAliases": "alias/bclaw-ssm"
+          "kms:ResourceAliases": "alias/dispatch-ssm"
         },
         "StringEquals": {
           "kms:ViaService": "ssm.us-east-1.amazonaws.com"

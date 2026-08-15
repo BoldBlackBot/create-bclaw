@@ -1,13 +1,13 @@
 ---
-name: setup-bclaw
+name: setup-dispatch
 description: >
-  Bootstraps a Hermes Agent bclaw on AWS ECS (EC2 launch type) from scratch to
+  Bootstraps a Hermes Agent dispatch on AWS ECS (EC2 launch type) from scratch to
   a running gateway. Follows a gated sequence: probe one ARM64 AZ → deploy
   CloudFormation (VPC, persistent EBS volume, a single-instance Auto Scaling
   Group, ECS service at DesiredCount 0 on the first deploy) → write SSM secrets
   → scale to 1 → overlay agent_home/ + install the aws_ssm plugin + merge its
-  secrets config → restart → verify. Use when setting up a new bclaw on AWS or re-deploying
-  after teardown. Companion to teardown-bclaw.
+  secrets config → restart → verify. Use when setting up a new dispatch on AWS or re-deploying
+  after teardown. Companion to teardown-dispatch.
 ---
 
 # Setup Harness ECS on EC2
@@ -43,17 +43,17 @@ keeps secrets out of template diffs and lets them survive stack deletes.
 
 This skill assumes AWS credentials are already configured. See `README.md` →
 **Setup** for the one-time IAM onboarding (create the deployer user, attach the
-`bclaw-deploy-policy.json` policy, add the access key to `.env`). That must be
+`dispatch-deploy-policy.json` policy, add the access key to `.env`). That must be
 completed before running this skill. Permissions are not pre-checked — if the
 deployer principal is missing an action, CloudFormation will surface the exact
 `is not authorized to perform` error at deploy time (Phase 2).
 
 The deployer's IAM powers are deliberately narrow: it manages the
 CloudFormation stack and a single dedicated **service role**
-(`bclaw-cfn-exec`) that CloudFormation assumes to perform the actual
+(`dispatch-cfn-exec`) that CloudFormation assumes to perform the actual
 infrastructure creates. That service role is created in **Phase 0** below
 (it cannot be a stack resource — the stack needs it to exist before it can be
-created), so onboarding attaches only `bclaw-deploy-policy.json`; nothing else
+created), so onboarding attaches only `dispatch-deploy-policy.json`; nothing else
 is created up front.
 
 Before starting, ensure the shell has `mise` active and AWS credentials
@@ -96,12 +96,12 @@ it is created here, before the first deploy, idempotently, and deleted last in
 teardown.
 
 The role's trust policy and inline execution policy ship alongside this skill's
-deploy policy as `bclaw-cfn-exec-trust.json` (trusts only
-`cloudformation.amazonaws.com`) and `bclaw-cfn-exec-policy.json` (the lifecycle
+deploy policy as `dispatch-cfn-exec-trust.json` (trusts only
+`cloudformation.amazonaws.com`) and `dispatch-cfn-exec-policy.json` (the lifecycle
 permissions). Run from the repo root so the `file://` paths resolve:
 
 ```bash
-CLAW_NAME=bclaw                              # the claw name (fixed at generation)
+CLAW_NAME=dispatch                              # the claw name (fixed at generation)
 AWS_REGION=<user-provided>
 CFN_EXEC="${CLAW_NAME}-cfn-exec"
 
@@ -127,7 +127,7 @@ aws iam get-role --role-name "$CFN_EXEC" --query 'Role.RoleName' --output text
 
 If `update-assume-role-policy` runs (the role already existed from a prior
 setup), `put-role-policy` still re-applies the inline policy — re-running this
-phase after editing `bclaw-cfn-exec-policy.json` is the way to update the
+phase after editing `dispatch-cfn-exec-policy.json` is the way to update the
 service role's permissions, and it takes effect on the next `cloudformation
 deploy`. The role's ARN is passed to the deploy as `--role-arn` in Phase 2.
 
@@ -153,7 +153,7 @@ Use `ask_user_question` to collect:
 
    The provider choice determines which provider API-key SSM parameter the user
    creates in Phase 3. The aws_ssm secret-source plugin resolves it (and the
-   other `/bclaw/*` secrets mapped in `agent_home/config.yaml`'s `env:`) into
+   other `/dispatch/*` secrets mapped in `agent_home/config.yaml`'s `env:`) into
    the env at gateway startup, so there is no per-provider stack parameter —
    adding or swapping a provider key later is an SSM write (+ an `env:` entry
    if it's a brand-new param name) + task restart, no template edit or
@@ -165,15 +165,15 @@ Use `ask_user_question` to collect:
 
    | Provider | SSM parameter |
    |---|---|
-   | openrouter | `/bclaw/OPENROUTER_API_KEY` |
-   | anthropic | `/bclaw/ANTHROPIC_API_KEY` |
-   | zai | `/bclaw/ZAI_API_KEY` |
+   | openrouter | `/dispatch/OPENROUTER_API_KEY` |
+   | anthropic | `/dispatch/ANTHROPIC_API_KEY` |
+   | zai | `/dispatch/ZAI_API_KEY` |
 
 3. **GitHub authentication** — whether the agent should make authenticated
    `gh`/HTTPS-git calls. This is OPTIONAL: the claw is a Slack bot and runs
    fine without it. Use `ask_user_question` with these two choices:
    - **Yes** — the claw authenticates `gh` automatically on every boot from
-     `/bclaw/GH_TOKEN_VAL` (the container `Command` runs
+     `/dispatch/GH_TOKEN_VAL` (the container `Command` runs
      `gh auth login --with-token`). Requires creating that SSM parameter in
      Phase 3 and passing `EnableGitHubKey=true` in Phase 2.
    - **No** (default) — no GitHub credential is injected; `gh`/HTTPS-git
@@ -183,7 +183,7 @@ Use `ask_user_question` to collect:
 Store them as shell variables used in every later command:
 
 ```bash
-CLAW_NAME=bclaw                              # the claw name (fixed at generation)
+CLAW_NAME=dispatch                              # the claw name (fixed at generation)
 AWS_REGION=<user-provided>
 INFER_PROVIDER=<openrouter|anthropic|zai>   # from step 2
 ENABLE_GH=<true|false>                      # from step 3 (default false)
@@ -236,8 +236,8 @@ is the step that prevents the #1 source of stray stacks: a *previous* run whose
 deploy failed and rolled back (stack now in `ROLLBACK_COMPLETE`) or whose
 teardown didn't finish (`DELETE_FAILED`). `cloudformation deploy` refuses to run
 into a stack in those states — it errors out, and the temptation is then to
-deploy under a *different* name, leaving the dead `bclaw` stack orphaned (still
-billing its retained EBS volume, still squatting on the `/bclaw/*` secret
+deploy under a *different* name, leaving the dead `dispatch` stack orphaned (still
+billing its retained EBS volume, still squatting on the `/dispatch/*` secret
 namespace). Detect it here and fix it instead.
 
 ```bash
@@ -253,7 +253,7 @@ if there is none. Act on the result:
 | Result | State | What to do |
 |---|---|---|
 | `does not exist` error | Fresh — no prior attempt | Proceed to the deploy below (this is a `CREATE`). |
-| `CREATE_COMPLETE` / `UPDATE_COMPLETE` | Already fully deployed | This run is an in-place `UPDATE`, not a fresh deploy. Usually fine (e.g. pushing a `template.yaml` change). But if the user wanted a clean rebuild, run the `teardown-bclaw` skill first. Tell the user it's an update before deploying. |
+| `CREATE_COMPLETE` / `UPDATE_COMPLETE` | Already fully deployed | This run is an in-place `UPDATE`, not a fresh deploy. Usually fine (e.g. pushing a `template.yaml` change). But if the user wanted a clean rebuild, run the `teardown-dispatch` skill first. Tell the user it's an update before deploying. |
 | `ROLLBACK_COMPLETE` / `CREATE_FAILED` / `ROLLBACK_FAILED` | Half-started: a deploy failed and rolled back | **STOP.** The stack exists but is unusable — `deploy` will refuse to touch it. Tear it down (below), then re-run setup. |
 | `UPDATE_ROLLBACK_COMPLETE` / `UPDATE_FAILED` / `UPDATE_ROLLBACK_FAILED` | Half-started: an update on a good stack failed | **STOP.** Cleanest fix is `delete-stack` + redeploy; alternatively `continue-update-rollback` recovers the prior good state. |
 | `DELETE_IN_PROGRESS` | A teardown is mid-flight | **STOP.** Wait for it to finish (`stack-delete-complete` waiter), then re-check this step. |
@@ -262,7 +262,7 @@ if there is none. Act on the result:
 | `REVIEW_IN_PROGRESS` | A stack with a pending change set (rare for `deploy`) | **STOP.** `delete-stack` then redeploy. |
 
 **If the gate stopped on a half-started stack, never abandon it under the
-`bclaw` name.** Run the `teardown-bclaw` skill (it scales to 0 first, deletes
+`dispatch` name.** Run the `teardown-dispatch` skill (it scales to 0 first, deletes
 the stack, and handles the retained-EBS + force-delete gotchas), or for a quick
 rollback cleanup:
 
@@ -272,7 +272,7 @@ aws cloudformation delete-stack --stack-name "$CLAW_NAME" --region "$AWS_REGION"
 aws cloudformation wait stack-delete-complete --stack-name "$CLAW_NAME" --region "$AWS_REGION"
 ```
 
-Two caveats specific to this stack when cleaning up a stale `bclaw`:
+Two caveats specific to this stack when cleaning up a stale `dispatch`:
 
 - **`DELETE_FAILED` on the ASG is common.** CloudFormation's resource handler
   can fail to confirm an Auto Scaling Group or its instance is gone (the
@@ -321,7 +321,7 @@ overrides carry no `Enable*Key`:
 
 ```bash
 aws cloudformation deploy \
-  --template-file .agents/skills/setup-bclaw/template.yaml \
+  --template-file .agents/skills/setup-dispatch/template.yaml \
   --stack-name "$CLAW_NAME" \
   --region "$AWS_REGION" \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -385,7 +385,7 @@ aws cloudformation describe-stacks \
 
 Confirm `ClusterName`, `ServiceName`, `EbsVolumeId`, `AutoScalingGroupName`,
 `KmsKeyArn`, `KmsKeyAlias` (should be `alias/${CLAW_NAME}-ssm`), and
-`SsmParameterPrefix` (should be `/bclaw`) are all present.
+`SsmParameterPrefix` (should be `/dispatch`) are all present.
 
 > **First-deploy instance boot takes a few minutes.** The ASG launches the
 > container instance, whose UserData installs the AWS CLI (if missing), finds +
@@ -400,12 +400,12 @@ Confirm `ClusterName`, `ServiceName`, `EbsVolumeId`, `AutoScalingGroupName`,
 
 **Gate: stack is `CREATE_COMPLETE`.**
 
-The claw needs SSM SecureString parameters under the `/bclaw/` namespace —
+The claw needs SSM SecureString parameters under the `/dispatch/` namespace —
 **4 Slack tokens** (always required), the **inference-provider key** chosen in
 Phase 1 step 2, and an **optional GitHub key** (only if `ENABLE_GH=true` from
 Phase 1 step 3). The namespace is hardcoded in the template
 (not constructed from `ClawName`), which means the deployer's IAM policy can be
-scoped to `arn:aws:ssm:*:*:parameter/bclaw/*` instead of `*`. They are **not** created by CloudFormation — the user
+scoped to `arn:aws:ssm:*:*:parameter/dispatch/*` instead of `*`. They are **not** created by CloudFormation — the user
 writes them here so they survive stack updates and deletes. Every one of them
 is resolved into the container env at gateway startup by the aws_ssm
 secret-source plugin (installed in Phase 5), using the TaskRole's SSM-read
@@ -426,10 +426,10 @@ inputs).
 
 | SSM key | What it is | Where to find it |
 |---|---|---|
-| `/bclaw/SLACK_BOT_TOKEN` | Slack bot OAuth token (`xoxb-`) | Slack app → OAuth & Permissions → Bot User OAuth Token |
-| `/bclaw/SLACK_APP_TOKEN` | Slack app-level token (`xapp-`, enables socket mode) | Slack app → Basic Information → App-Level Tokens |
-| `/bclaw/SLACK_ALLOWED_USERS` | Comma-separated Slack user IDs allowed to use the bot | Slack profile → "Copy member ID" |
-| `/bclaw/SLACK_HOME_CHANNEL` | Slack channel ID the bot treats as home | Right-click channel → "Copy link", take the trailing ID |
+| `/dispatch/SLACK_BOT_TOKEN` | Slack bot OAuth token (`xoxb-`) | Slack app → OAuth & Permissions → Bot User OAuth Token |
+| `/dispatch/SLACK_APP_TOKEN` | Slack app-level token (`xapp-`, enables socket mode) | Slack app → Basic Information → App-Level Tokens |
+| `/dispatch/SLACK_ALLOWED_USERS` | Comma-separated Slack user IDs allowed to use the bot | Slack profile → "Copy member ID" |
+| `/dispatch/SLACK_HOME_CHANNEL` | Slack channel ID the bot treats as home | Right-click channel → "Copy link", take the trailing ID |
 
 **GitHub key (optional, from Phase 1 step 3):** create this only if
 `ENABLE_GH=true` — it authenticates `gh`/HTTPS-git on every boot. Skip this
@@ -437,7 +437,7 @@ entire subsection if the user opted out.
 
 | SSM key | What it is | Where to find it |
 |---|---|---|
-| `/bclaw/GH_TOKEN_VAL` | GitHub PAT — used for on-boot `gh auth login` (see Phase 6a). Named `*_VAL`, not `GH_TOKEN`, to dodge `gh`'s reserved env var | https://github.com/settings/tokens (classic PAT or fine-grained; needs the scopes the claw's `gh`/git usage requires) |
+| `/dispatch/GH_TOKEN_VAL` | GitHub PAT — used for on-boot `gh auth login` (see Phase 6a). Named `*_VAL`, not `GH_TOKEN`, to dodge `gh`'s reserved env var | https://github.com/settings/tokens (classic PAT or fine-grained; needs the scopes the claw's `gh`/git usage requires) |
 
 **Inference-provider key (1, from Phase 1 `$INFER_PROVIDER`):** create the one
 matching the chosen provider — this is the key the gateway uses as its model
@@ -445,9 +445,9 @@ backend.
 
 | `$INFER_PROVIDER` | SSM key | Where to find it |
 |---|---|---|
-| openrouter | `/bclaw/OPENROUTER_API_KEY` | https://openrouter.ai/keys |
-| anthropic | `/bclaw/ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
-| zai | `/bclaw/ZAI_API_KEY` | https://z.ai/manage-apikey/apikey-list (Zhipu AI / open.bigmodel.cn for mainland China) |
+| openrouter | `/dispatch/OPENROUTER_API_KEY` | https://openrouter.ai/keys |
+| anthropic | `/dispatch/ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
+| zai | `/dispatch/ZAI_API_KEY` | https://z.ai/manage-apikey/apikey-list (Zhipu AI / open.bigmodel.cn for mainland China) |
 
 For each parameter the user creates in the console, the settings are:
 
@@ -455,7 +455,7 @@ For each parameter the user creates in the console, the settings are:
 - **Type:** `SecureString`
 - **KMS Key ID:** `alias/${CLAW_NAME}-ssm` — the claw's own CMK, created by the
   stack in Phase 2. **NOT** the default `alias/aws/ssm`. Type the alias name
-  (e.g. `alias/bclaw-ssm`) into the console's KMS key picker; it resolves to
+  (e.g. `alias/dispatch-ssm`) into the console's KMS key picker; it resolves to
   the key the template just created.
 - **Value:** the secret itself (masked input).
 
@@ -464,7 +464,7 @@ For each parameter the user creates in the console, the settings are:
 > command with a leading space so the value stays out of shell history:
 >
 > ```bash
->  aws ssm put-parameter --name "/bclaw/SLACK_BOT_TOKEN" \
+>  aws ssm put-parameter --name "/dispatch/SLACK_BOT_TOKEN" \
 >    --type SecureString --key-id "alias/${CLAW_NAME}-ssm" \
 >    --value "<token>" --region "$AWS_REGION"
 > # repeat for the other 3 Slack secrets + the provider key (+ GH_TOKEN_VAL if
@@ -490,7 +490,7 @@ REQUIRED="SLACK_BOT_TOKEN SLACK_APP_TOKEN SLACK_ALLOWED_USERS SLACK_HOME_CHANNEL
 [ "$ENABLE_GH" = "true" ] && REQUIRED="$REQUIRED GH_TOKEN_VAL"
 
 for k in $REQUIRED; do
-  aws ssm get-parameter --name "/bclaw/$k" \
+  aws ssm get-parameter --name "/dispatch/$k" \
     --region "$AWS_REGION" --query 'Parameter.Name' --output text 2>&1
 done
 ```
@@ -612,7 +612,7 @@ NO secrets in the env — the aws_ssm plugin isn't installed and its `secrets:`
 config block isn't present, so Slack isn't connected yet. This phase completes
 the bootstrapping: overlay the curated `agent_home/`, install the plugin,
 merge its config block into the live `config.yaml`, then restart. After the
-restart the plugin resolves every `/bclaw/*` secret at the first env load and
+restart the plugin resolves every `/dispatch/*` secret at the first env load and
 the Slack bot connects.
 
 You need the manage skill's ECS Exec transport for all three steps below.
@@ -626,12 +626,12 @@ Setup has already satisfied its entry conditions:
   first ECS Exec call of this setup, so run it to confirm the plugin works
   and the caller has exec perms.
 
-#### 5a. Overlay agent_home/ (manage-bclaw Mode 1)
+#### 5a. Overlay agent_home/ (manage-dispatch Mode 1)
 
 Establish the curated baseline — skills, memories, system prompt, `SOUL.md`
 persona, and the default `boldblackai/skills` marketplace tap
 (`agent_home/skills/.hub/taps.json`) — on the claw's `/home/harness/.hermes`.
-Run `manage-bclaw` in
+Run `manage-dispatch` in
 **Mode 1 (Overlay)** now; it owns the full procedure (tar+base64 over ECS
 Exec, chunked transfer, decode/extract/`chown`, merge-with-overwrite
 semantics, dry-run gate). `config.yaml` is excluded from the overlay on
@@ -643,7 +643,7 @@ to overlay — skip this step; the claw keeps its self-seeded defaults.
 
 #### 5b. Install the aws_ssm secret-source plugin
 
-Install the plugin that resolves the `/bclaw/*` SSM parameters into env vars
+Install the plugin that resolves the `/dispatch/*` SSM parameters into env vars
 at gateway startup. It writes into `~/.hermes/plugins/` (EBS-backed, persists
 across restarts), so this is a one-time setup step. Run it as the harness user
 (uid 1000) from an exec session (which runs as root):
@@ -671,13 +671,13 @@ aws ecs execute-command --cluster "$CLAW_NAME" --task "$TASK_ARN" \
 > resolves the source; the gateway log then shows
 > `AWS SSM Parameter Store: applied N secrets`.
 
-#### 5c. Merge the secrets config block (manage-bclaw Mode 3)
+#### 5c. Merge the secrets config block (manage-dispatch Mode 3)
 
 The plugin's config lives in `agent_home/config.yaml` (a minimal `secrets:`
 block). The overlay excluded it, so merge it into the live
 `~/.hermes/config.yaml` at the key level — this preserves the live config's
 comments/order/env-driven keys while adding the non-env `secrets:` block
-(which survives the cloud-mode re-seed on restart). Run `manage-bclaw` in
+(which survives the cloud-mode re-seed on restart). Run `manage-dispatch` in
 **Mode 3 (Merge-config)** now; it fetches the live config (byte-chunked over
 ECS Exec), runs `merge_config.py` (ruamel.yaml round-trip via `uv`), and
 pushes the merged result back. Confirm the merge when it asks.
@@ -685,7 +685,7 @@ pushes the merged result back. Confirm the merge when it asks.
 #### Restart to apply (unconditional)
 
 Restart so the gateway re-reads its config and loads the plugin. After the
-restart the plugin resolves every `/bclaw/*` secret at the first env load and
+restart the plugin resolves every `/dispatch/*` secret at the first env load and
 the Slack bot connects (the service's recreate deployment config makes this a
 stop-old-then-start-new swap, ~10-20s downtime):
 
@@ -745,7 +745,7 @@ aws ecs execute-command --cluster "$CLAW_NAME" --task "$TASK_ARN" \
 
 `gh`/HTTPS-git authentication is **not** a manual step — when GitHub auth is
 enabled (`ENABLE_GH=true`), the task definition injects `GH_TOKEN_VAL` from
-the `/bclaw/GH_TOKEN_VAL` SSM parameter and the container `Command` runs, as
+the `/dispatch/GH_TOKEN_VAL` SSM parameter and the container `Command` runs, as
 the harness user on every boot:
 
 ```
@@ -777,7 +777,7 @@ A healthy boot shows `Logged in to github.com as <user>`. If instead you see
 rejected (rotate it, see below) or GitHub was briefly unreachable (the next
 task restart retries automatically).
 
-**Rotating the token.** Update the `/bclaw/GH_TOKEN_VAL` SSM parameter in
+**Rotating the token.** Update the `/dispatch/GH_TOKEN_VAL` SSM parameter in
 the **AWS Console** (Systems Manager → Parameter Store → open the parameter →
 **Edit** → paste the new PAT → Save), then force a new task so the boot
 command re-runs the login:
@@ -799,12 +799,12 @@ Report to the user:
 - Claw name, region, inference provider, and the single AZ the instance/task
   live in (with ARM64 confirmation)
 - Stack name and key outputs (cluster, EBS volume ID, ASG name, SSM prefix)
-- The SSM parameter locations (4 Slack + the provider key, plus `/bclaw/GH_TOKEN_VAL` if GitHub auth was enabled — values never displayed)
-- The aws_ssm plugin is installed and its `secrets:` config merged (Phase 5); it resolves every `/bclaw/*` secret at gateway startup. Slack is connected (confirmed in Phase 5). To add or rotate a key, write the SSM param + force a new task (`aws ecs update-service --force-new-deployment`) — no template edit or redeploy.
-- GitHub auth (if enabled) is automatic on boot from `/bclaw/GH_TOKEN_VAL` (Phase 6a) — verify with `runuser -u harness -- gh auth status` from an exec session; if disabled, `gh auth status` showing "not logged in" is expected
+- The SSM parameter locations (4 Slack + the provider key, plus `/dispatch/GH_TOKEN_VAL` if GitHub auth was enabled — values never displayed)
+- The aws_ssm plugin is installed and its `secrets:` config merged (Phase 5); it resolves every `/dispatch/*` secret at gateway startup. Slack is connected (confirmed in Phase 5). To add or rotate a key, write the SSM param + force a new task (`aws ecs update-service --force-new-deployment`) — no template edit or redeploy.
+- GitHub auth (if enabled) is automatic on boot from `/dispatch/GH_TOKEN_VAL` (Phase 6a) — verify with `runuser -u harness -- gh auth status` from an exec session; if disabled, `gh auth status` showing "not logged in" is expected
 - How to tail logs: `aws logs tail "/ecs/${CLAW_NAME}" --follow --region "$AWS_REGION"`
 - How to shell in: the `aws ecs execute-command` snippet from Phase 6
-- How to tear down: point at the `teardown-bclaw` skill
+- How to tear down: point at the `teardown-dispatch` skill
 
 ---
 
@@ -816,9 +816,9 @@ Report to the user:
   `Dockerfile` or `entrypoint.sh` is needed. Do not build a derived image.
 
 - **Secrets live in SSM, not Secrets Manager.** Following the piranesi pattern,
-  secrets are namespaced SecureString parameters (`/bclaw/KEY`) that the user
-  writes. The `/bclaw/` namespace is hardcoded in the template so the
-  deployer IAM policy can pin `parameter/bclaw/*`. They are not
+  secrets are namespaced SecureString parameters (`/dispatch/KEY`) that the user
+  writes. The `/dispatch/` namespace is hardcoded in the template so the
+  deployer IAM policy can pin `parameter/dispatch/*`. They are not
   CloudFormation resources, so stack updates never clobber their values and
   they survive stack deletes. The teardown skill deletes them explicitly after
   user confirmation. SecureStrings are encrypted with a customer-managed KMS
@@ -850,7 +850,7 @@ Report to the user:
   `config.yaml`), then `exec`s the wrapper as the harness user (uid 1000). The
   login is **non-fatal** — a failure (bad token, GitHub outage) is logged to
   CloudWatch and the gateway still starts. `GH_TOKEN_VAL` is an **optional**
-  SSM param (`/bclaw/GH_TOKEN_VAL`), gated behind the `EnableGitHubKey` stack
+  SSM param (`/dispatch/GH_TOKEN_VAL`), gated behind the `EnableGitHubKey` stack
   parameter (default `false`) and injected via `secrets[]` — it is the ONE
   secret still injected by CloudFormation, because the on-boot `gh auth login`
   runs before the aws_ssm plugin loads. (Every other secret — the Slack tokens
@@ -867,7 +867,7 @@ Report to the user:
   terminal/execute_code sandbox scrubs token-like env vars from its
   environment, so `gh`/git calls the agent makes find no env var — they rely on
   the stored credential in `~/.config/gh/hosts.yml` (on the EBS volume,
-  persists across restarts). To rotate: update `/bclaw/GH_TOKEN_VAL` in the
+  persists across restarts). To rotate: update `/dispatch/GH_TOKEN_VAL` in the
   AWS console (Parameter Store → Edit, or `put-parameter --overwrite`) then
   `update-service --force-new-deployment` (the boot command re-runs on every
   task start). `printf` (not `echo`) is used so a token beginning with `-`
@@ -917,7 +917,7 @@ Report to the user:
   sidecar to re-inject.
 
 - **AWS credentials.** See Prerequisites → "AWS credentials — the deployer IAM
-  user" for creating the deployer principal, the `bclaw-deploy` policy, and the
+  user" for creating the deployer principal, the `dispatch-deploy` policy, and the
   `.env` format. `.env` is gitignored; never commit it.
 
 - **First-task image pull.** Initial task placement takes 2–3 minutes, most of
@@ -946,20 +946,20 @@ Report to the user:
   them, then verify the live task def matches intent.
 
 - **Adding new SSM secrets.** To forward an additional secret into the
-  gateway's env, just put it in SSM as a SecureString under `/bclaw/` (encrypted
+  gateway's env, just put it in SSM as a SecureString under `/dispatch/` (encrypted
   with the claw's CMK, `alias/${CLAW_NAME}-ssm`), then force a new task so the
   aws_ssm plugin resolves it at startup:
   ```bash
-   aws ssm put-parameter --name "/bclaw/MY_API_KEY" \
+   aws ssm put-parameter --name "/dispatch/MY_API_KEY" \
      --type SecureString --key-id "alias/${CLAW_NAME}-ssm" \
      --value "<value>" --region "$AWS_REGION"
   aws ecs update-service --cluster "$CLAW_NAME" --service "$CLAW_NAME" \
     --force-new-deployment --region "$AWS_REGION"
   ```
-  The leaf name becomes the env var (`/bclaw/MY_API_KEY` → `MY_API_KEY`;
-  sub-paths flatten, e.g. `/bclaw/db/PASSWORD` → `DB_PASSWORD`). No
+  The leaf name becomes the env var (`/dispatch/MY_API_KEY` → `MY_API_KEY`;
+  sub-paths flatten, e.g. `/dispatch/db/PASSWORD` → `DB_PASSWORD`). No
   `template.yaml` edit, no CloudFormation redeploy, no new stack parameter —
-  the plugin already covers `parameter/bclaw/*`. Rotation is the same flow
+  the plugin already covers `parameter/dispatch/*`. Rotation is the same flow
   (`put-parameter --overwrite` + restart). This works for any secret consumed
   inside Hermes after the plugin loads (the Slack tokens, the provider keys,
   skill API keys).
@@ -982,5 +982,5 @@ Report to the user:
   PyYAML linter (in `patch`/`write_file`) reports false-positive errors on
   CloudFormation intrinsic shorthand (`!Equals`, `!Sub`, `!If` — valid CFN, not
   valid plain YAML). Ignore those; instead validate with cfn-lint:
-  `uvx cfn-lint .agents/skills/setup-bclaw/template.yaml` (run via
+  `uvx cfn-lint .agents/skills/setup-dispatch/template.yaml` (run via
   `mise exec -- uvx cfn-lint ...`).

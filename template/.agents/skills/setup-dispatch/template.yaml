@@ -14,14 +14,14 @@ Description: >
   UserData finds it by tag, attaches it, and mounts it by label on every boot,
   so data survives instance replacement. Single-AZ is the cost of zonal EBS.
 
-  Managed by the setup-bclaw / teardown-bclaw agent skills.
+  Managed by the setup-dispatch / teardown-dispatch agent skills.
 
 # ── Parameters ──────────────────────────────────────────────────────────────
 
 Parameters:
   ClawName:
     Type: String
-    Default: bclaw
+    Default: dispatch
     Description: >
       Name of the claw. Prefixed onto every resource (cluster, log group,
       IAM roles, EBS volume tags).
@@ -107,7 +107,7 @@ Parameters:
     Default: "false"
     AllowedValues: ["true", "false"]
     Description: >
-      Set to "true" to inject /bclaw/GH_TOKEN_VAL into the container env and
+      Set to "true" to inject /dispatch/GH_TOKEN_VAL into the container env and
       run the on-boot `gh auth login --with-token` from the container Command
       (requires the SSM parameter to exist). Defaults to "false" — GitHub auth
       is OPTIONAL: the claw is a Slack bot and runs fine without it. Enable it
@@ -264,17 +264,17 @@ Resources:
 
   # ── Secrets are NOT CloudFormation resources ──────────────────────────────
   # Following the piranesi pattern, secrets live in SSM Parameter Store as
-  # namespaced SecureString parameters (e.g. /bclaw/OPENROUTER_API_KEY) that
+  # namespaced SecureString parameters (e.g. /dispatch/OPENROUTER_API_KEY) that
   # the USER writes in a skill phase (Phase 2) before the service scales up.
   # They are not owned by this stack, so they survive stack deletes and stack
   # updates never clobber their values.
   #
-  # Secrets live as SSM SecureString parameters under /bclaw/ (the piranesi
+  # Secrets live as SSM SecureString parameters under /dispatch/ (the piranesi
   # pattern) and are NOT CloudFormation resources, so they survive stack
   # updates/deletes. They reach the container two ways:
   #
   #   1. aws_ssm secret-source plugin (hermes-aws-ssm-secret-source) — resolves
-  #      the /bclaw/* params explicitly mapped in agent_home/config.yaml
+  #      the /dispatch/* params explicitly mapped in agent_home/config.yaml
   #      `env:` into env vars at the first env load (after .env, before Hermes
   #      reads credentials), using the TaskRole's read-ssm-params grant. The
   #      plugin is mapped-only: only listed params are fetched and only
@@ -293,15 +293,15 @@ Resources:
   #      role's ssm:GetParameters grant (below) resolves it at container start.
   #
   # The claw is a Slack socket-mode bot (see README + slack-manifest.json).
-  # SSM parameters under /bclaw/ (the plugin resolves those mapped in `env:`):
-  #   /bclaw/SLACK_BOT_TOKEN       — Slack bot OAuth token (xoxb-)
-  #   /bclaw/SLACK_APP_TOKEN       — Slack app-level token (xapp-, socket mode)
-  #   /bclaw/SLACK_ALLOWED_USERS   — comma-separated Slack user IDs
-  #   /bclaw/SLACK_HOME_CHANNEL    — Slack home channel ID
-  #   /bclaw/OPENROUTER_API_KEY    — OpenRouter API key (recommended)
-  #   /bclaw/ANTHROPIC_API_KEY     — Anthropic (direct Claude API)
-  #   /bclaw/ZAI_API_KEY           — Z.AI / Zhipu (GLM)
-  #   /bclaw/GH_TOKEN_VAL          — GitHub PAT for on-boot `gh auth login`
+  # SSM parameters under /dispatch/ (the plugin resolves those mapped in `env:`):
+  #   /dispatch/SLACK_BOT_TOKEN       — Slack bot OAuth token (xoxb-)
+  #   /dispatch/SLACK_APP_TOKEN       — Slack app-level token (xapp-, socket mode)
+  #   /dispatch/SLACK_ALLOWED_USERS   — comma-separated Slack user IDs
+  #   /dispatch/SLACK_HOME_CHANNEL    — Slack home channel ID
+  #   /dispatch/OPENROUTER_API_KEY    — OpenRouter API key (recommended)
+  #   /dispatch/ANTHROPIC_API_KEY     — Anthropic (direct Claude API)
+  #   /dispatch/ZAI_API_KEY           — Z.AI / Zhipu (GLM)
+  #   /dispatch/GH_TOKEN_VAL          — GitHub PAT for on-boot `gh auth login`
   #                                  (see secrets[] + Command below; named
   #                                  *_VAL, not GH_TOKEN, to avoid colliding
   #                                  with gh's reserved env var)
@@ -330,10 +330,10 @@ Resources:
                 # GetParameters (batch). Scoped to the claw's SSM parameter
                 # prefix; WithDecryption is server-side, gated by kms:Decrypt.
                 Action: ssm:GetParameters
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bclaw/*"
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dispatch/*"
               - Effect: Allow
                 # Scoped to the claw's own CMK (SsmKmsKey, above). The
-                # encryption context is pinned to the /bclaw/ namespace so
+                # encryption context is pinned to the /dispatch/ namespace so
                 # the key can't decrypt params outside it; CallerAccount +
                 # ViaService bind the key to this account's SSM service.
                 Action: kms:Decrypt
@@ -343,7 +343,7 @@ Resources:
                     "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
                     "kms:CallerAccount": !Ref AWS::AccountId
                   StringLike:
-                    "kms:EncryptionContext:PARAMETER_ARN": !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bclaw/*"
+                    "kms:EncryptionContext:PARAMETER_ARN": !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dispatch/*"
 
   # ── IAM: task role (used by the container; needs ssmmessages for ECS Exec) ──
 
@@ -371,11 +371,11 @@ Resources:
                 Resource: "*"
         # SSM read access for the aws_ssm secret-source plugin
         # (hermes-aws-ssm-secret-source). It runs in the container process and
-        # calls GetParameters at startup to resolve the /bclaw/* SecureString
+        # calls GetParameters at startup to resolve the /dispatch/* SecureString
         # params explicitly mapped in agent_home/config.yaml `env:` into env
         # vars. Mirrors the ExecutionRole's read-ssm-params grant. WithDecryption
         # is server-side, gated by kms:Decrypt below; the encryption context is
-        # pinned to the /bclaw/ namespace so the key can't decrypt params
+        # pinned to the /dispatch/ namespace so the key can't decrypt params
         # outside it.
         - PolicyName: read-ssm-params
           PolicyDocument:
@@ -383,7 +383,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: ssm:GetParameters
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bclaw/*"
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dispatch/*"
               - Effect: Allow
                 Action: kms:Decrypt
                 Resource: !GetAtt SsmKmsKey.Arn
@@ -392,7 +392,7 @@ Resources:
                     "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
                     "kms:CallerAccount": !Ref AWS::AccountId
                   StringLike:
-                    "kms:EncryptionContext:PARAMETER_ARN": !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bclaw/*"
+                    "kms:EncryptionContext:PARAMETER_ARN": !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dispatch/*"
 
   # ── IAM: container-instance role + instance profile ───────────────────────
   # The EC2 container instance (ASG-managed) needs:
@@ -716,13 +716,13 @@ Resources:
           # BEFORE `exec hermes gateway`, i.e. before the aws_ssm secret-source
           # plugin (hermes-aws-ssm-secret-source) loads. Every other secret —
           # the Slack tokens and the inference-provider keys — is resolved from
-          # the /bclaw/ SSM namespace by the plugin at the first env load
+          # the /dispatch/ SSM namespace by the plugin at the first env load
           # (Hermes #64189, in the image since hermes-1.9.3), using the
           # TaskRole's read-ssm-params grant. See agent_home/config.yaml.
           Secrets:
             - !If
               - GitHubKeyEnabled
-              - { Name: GH_TOKEN_VAL, ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bclaw/GH_TOKEN_VAL" }
+              - { Name: GH_TOKEN_VAL, ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dispatch/GH_TOKEN_VAL" }
               - !Ref AWS::NoValue
           MountPoints:
             - { SourceVolume: hermes-data,       ContainerPath: /home/harness/.hermes,           ReadOnly: false }
@@ -817,10 +817,10 @@ Outputs:
   LogGroup:
     Value: !Ref LogGroup
   SsmParameterPrefix:
-    Value: "/bclaw"
+    Value: "/dispatch"
     Description: >
       SSM SecureString parameter namespace for this claw. The aws_ssm
-      secret-source plugin resolves every /bclaw/* parameter into an env var
+      secret-source plugin resolves every /dispatch/* parameter into an env var
       at the first gateway start: the 4 Slack params (SLACK_BOT_TOKEN,
       SLACK_APP_TOKEN, SLACK_ALLOWED_USERS, SLACK_HOME_CHANNEL), the chosen
       inference-provider key (OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or
