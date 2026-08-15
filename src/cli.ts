@@ -33,11 +33,11 @@ function pkgVersion(): string {
 
 function printHelp(): void {
   const help = [
-    "@boldblackai/create-bclaw — scaffold a bclaw repository",
+    "@boldblackai/create-dispatch — scaffold a dispatch agent repository",
     "",
     "Usage:",
-    "  npx @boldblackai/create-bclaw <name>       generate ./<name>/",
-    "  npm init @boldblackai/bclaw <name>          (equivalent)",
+    "  npx @boldblackai/create-dispatch <name>   generate ./<name>/",
+    "  npm init @boldblackai/dispatch <name>     (equivalent)",
     "",
     "Options:",
     "  --force       write into a non-empty target (merges; overwrites existing files)",
@@ -88,9 +88,9 @@ async function askName(): Promise<string> {
   try {
     while (true) {
       // eslint-disable-next-line no-await-in-loop -- interactive prompt: each iteration awaits the user's answer before re-prompting; cannot be batched
-      const answer = await rl.question("Claw name? (bclaw) ").catch(() => null);
+      const answer = await rl.question("Agent name? (dispatch) ").catch(() => null);
       if (answer === null) cancelled();
-      const s = (answer ?? "").trim() || "bclaw";
+      const s = (answer ?? "").trim() || "dispatch";
       if (validName(s)) return s;
       process.stderr.write(`${nameRule()} — try again\n`);
     }
@@ -178,7 +178,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log("@boldblackai/create-bclaw");
+  console.log("@boldblackai/create-dispatch");
 
   const unknown = flags.filter((f) => !KNOWN_FLAGS.has(f));
   if (unknown.length > 0) {
@@ -189,7 +189,7 @@ async function main(): Promise<void> {
   const nameFromArg = typeof name === "string";
   if (!nameFromArg) {
     if (!process.stdin.isTTY) {
-      fail("no claw name provided and stdin is not a TTY — pass the name as an argument");
+      fail("no agent name provided and stdin is not a TTY — pass the name as an argument");
     }
     name = await askName();
   }
@@ -220,7 +220,7 @@ async function main(): Promise<void> {
   }
 
   if (!nameFromArg) {
-    const ok = await askConfirm(`Generate claw "${name}" into ${targetDir}?`);
+    const ok = await askConfirm(`Generate agent "${name}" into ${targetDir}?`);
     if (!ok) cancelled();
   }
 

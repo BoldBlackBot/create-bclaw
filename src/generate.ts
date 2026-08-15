@@ -12,13 +12,13 @@ import * as path from "node:path";
 
 /**
  * The single rename token. Every occurrence in the source template is
- * lowercase and standalone (no `Bclaw`, no glued substrings), so a literal
+ * lowercase and standalone (no `Dispatch`, no glued substrings), so a literal
  * substring replace is the whole transform. See RFC §Rename model.
  */
-const RENAME_FROM = "bclaw";
+const RENAME_FROM = "dispatch";
 
 /**
- * The region token. Substituted alongside `bclaw`→`name` so the deployer IAM
+ * The region token. Substituted alongside `dispatch`→`name` so the deployer IAM
  * policy's `kms:ViaService` (a static JSON that can't use `${AWS::Region}`)
  * matches the user's chosen region. See
  * rfcs/2026-07-15_region-substitution-token.md.
@@ -41,7 +41,7 @@ export interface GenerateOptions {
 
 /**
  * Copy `template/` → `targetDir/`, applying BOTH literal token replaces
- * (`bclaw`→`name`, `us-east-1`→`region`) to file contents AND path components,
+ * (`dispatch`→`name`, `us-east-1`→`region`) to file contents AND path components,
  * then assert no residual token remains and `git init` the result. The copy +
  * residual scan are synchronous recursive walks (depth-first: a directory must
  * be listed before its entries are recursed into, so the steps are inherently
@@ -65,11 +65,11 @@ export async function generate(opts: GenerateOptions): Promise<void> {
   mkdirSync(targetDir, { recursive: true });
   copyTree(templateDir, targetDir, name, region);
 
-  // Hard post-copy assertions: zero residual `bclaw` AND (when the region is
+  // Hard post-copy assertions: zero residual `dispatch` AND (when the region is
   // not the no-op default) zero residual `us-east-1` in contents and path
   // components. Each is skipped when its own target embeds the token — a
-  // literal grep would flag the legitimate replacement (name == "bclaw" or
-  // name == "mybclaw" for the name token; region == "us-east-1" for the
+  // literal grep would flag the legitimate replacement (name == "dispatch" or
+  // name == "mydispatch" for the name token; region == "us-east-1" for the
   // region token, which is exactly the no-op case).
   if (!name.includes(RENAME_FROM)) {
     assertNoResidual(targetDir, RENAME_FROM);
@@ -89,7 +89,7 @@ export async function generate(opts: GenerateOptions): Promise<void> {
 }
 
 /**
- * Recursively copy src→dest, renaming BOTH tokens (`bclaw`→name,
+ * Recursively copy src→dest, renaming BOTH tokens (`dispatch`→name,
  * `us-east-1`→region) in path components + contents (+ symlink targets).
  */
 function copyTree(src: string, dest: string, name: string, region: string): void {
@@ -182,13 +182,13 @@ function assertNoResidual(root: string, token: string): void {
 async function gitInit(dir: string): Promise<void> {
   await git(dir, ["init", "--quiet"]);
   if (!(await gitConfig(dir, "user.email"))) {
-    await git(dir, ["config", "user.email", "create-bclaw@local"]);
+    await git(dir, ["config", "user.email", "create-dispatch@local"]);
   }
   if (!(await gitConfig(dir, "user.name"))) {
-    await git(dir, ["config", "user.name", "create-bclaw"]);
+    await git(dir, ["config", "user.name", "create-dispatch"]);
   }
   await git(dir, ["add", "-A"]);
-  await git(dir, ["commit", "--quiet", "-m", "Initial commit from @boldblackai/create-bclaw"]);
+  await git(dir, ["commit", "--quiet", "-m", "Initial commit from @boldblackai/create-dispatch"]);
 }
 
 async function gitConfig(dir: string, key: string): Promise<string> {
