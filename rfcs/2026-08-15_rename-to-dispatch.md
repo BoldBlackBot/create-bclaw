@@ -1,7 +1,7 @@
 # Rename bclaw → dispatch
 
 **Date:** 2026-08-15
-**Status:** Proposed
+**Status:** Implemented
 
 ## Goal
 
@@ -55,6 +55,6 @@ The golden test is updated first (TDD): it now generates with `name=dispatch` ex
 - [x] `README.md` rewritten (naming, install command, links, etymology removed)
 - [x] `CHANGELOG.md` — 1.1.0 entry
 - [x] `AGENTS.md` self-references + `journal:create-dispatch:` corkboard namespace
-- [ ] (post-merge) GitHub repo renamed to `boldblackai/create-dispatch`
-- [ ] (post-merge) manual first publish of `@boldblackai/create-dispatch`, trusted-publisher registration, deprecate `@boldblackai/create-bclaw`
-- [ ] (post-merge) homepage DNS cutover to `dispatch.boldblack.ai`
+- [x] (post-merge) GitHub repo renamed to `boldblackai/create-dispatch` (2026-08-15)
+- [x] (post-merge) manual first publish of `@boldblackai/create-dispatch@1.1.0` (2026-08-15); `@boldblackai/create-bclaw` deprecated with a pointer to the new name
+- [x] (post-merge) homepage DNS cutover to `dispatch.boldblack.ai` (live 2026-08-15)
