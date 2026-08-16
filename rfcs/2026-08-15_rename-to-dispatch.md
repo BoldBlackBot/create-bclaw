@@ -58,3 +58,12 @@ The golden test is updated first (TDD): it now generates with `name=dispatch` ex
 - [x] (post-merge) GitHub repo renamed to `boldblackai/create-dispatch` (2026-08-15)
 - [x] (post-merge) manual first publish of `@boldblackai/create-dispatch@1.1.0` (2026-08-15); `@boldblackai/create-bclaw` deprecated with a pointer to the new name
 - [x] (post-merge) homepage DNS cutover to `dispatch.boldblack.ai` (live 2026-08-15)
+
+## Implementation Notes
+
+- The first release attempt (PR #38) was merged with a regular merge whose
+  commit message did not carry the `release v` prefix (the PR title was
+  truncated in the merge commit), so the `tag-on-merge.yml` sentinel never
+  fired and no `v1.1.0` tag was created. This release PR re-fires it;
+  release PRs must be **squash-merged** so the head commit message starts
+  with `release v`.
