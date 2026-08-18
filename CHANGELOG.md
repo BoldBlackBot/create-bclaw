@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.1] - 2026-08-18
+
+### Summary
+
+Template image bump: generated claws now default to the `hermes-1.9.11` container image (was `hermes-1.9.3`). The `HarnessImageTag` CloudFormation parameter default and the `manage-dispatch` skill documentation are updated to match. No CLI or generator behavior changes; already-deployed agents are unaffected — roll them with the `manage-dispatch` upgrade procedure.
+
+### Changes
+
+- c19aa27 bump: harness image tag to hermes-1.9.11
+
 ## [1.1.0] - 2026-08-15
 
 ### Summary
