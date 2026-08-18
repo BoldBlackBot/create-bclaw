@@ -6,6 +6,18 @@
 - Always redact AWS identifiers (account IDs, resource ARNs, instance IDs, etc.) in RFCs, PRs, PR comments, commit messages, and any other text checked into the repository. Use placeholders like `<account-id>`, `<resource-id>`, or a descriptive label instead.
 - Never put links to the corkboard in code or commit messages (or any other text checked into the repository). The corkboard is a low-security, internal resource; reference it by name ("the corkboard") instead of embedding its URL.
 
+## Documentation website
+
+Built with [Zensical](https://zensical.org) from `docs/`. Config in
+`zensical.toml`. Deploys to GitHub Pages via `.github/workflows/docs.yml`,
+which also runs a build-only check on PRs that touch `docs/`, `zensical.toml`,
+or the workflow itself (so doc build failures are caught before merge). The
+published Pages tree is mirrored by the dispatch-site Amplify build and served
+at `https://dispatch.boldblack.ai/docs/`. Build locally with
+`uv tool install zensical==0.0.43 && zensical build --clean`. Zensical emits
+relative links — keep it that way (no absolute-internal-link builds); the
+mirror's relocatability depends on it.
+
 ## RFCs
 
 Significant changes, architectural decisions, and new features should be proposed as RFCs in the `rfcs/` directory. RFCs use the format `rfcs/YYYY-MM-DD_short_title.md` with the following structure:

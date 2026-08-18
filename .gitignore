@@ -6,6 +6,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Zensical docs build output (docs/ + zensical.toml -> site/, deployed to
+# GitHub Pages by .github/workflows/docs.yml)
+site/
+
 # Test coverage
 coverage/
 
