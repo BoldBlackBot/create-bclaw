@@ -53,7 +53,7 @@ You can use web-search-prime to look things up that aren't obvious in the reposi
   replacement. SQLite's WAL mode needs a real local block device (it is unsafe
   on NFS), which is the reason state is on EBS.
 - Secrets are **SSM SecureString** parameters under the claw's `/dispatch/KEY`
-  namespace, written by the user in setup Phase 3 (piranesi pattern). Not
+  namespace, written by the user in setup Phase 3. Not
   stack-owned, so they survive stack updates/deletes. A Hermes secret-source
   plugin (`aws_ssm`, installed in setup Phase 5) resolves every `/dispatch/*`
   parameter into the gateway env at startup, using the TaskRole's SSM-read
