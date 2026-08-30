@@ -36,8 +36,8 @@ service whose `DesiredCount` is a parameter (default `1`); the setup skill
 passes `0` on the first deploy — before the SSM secrets exist and the aws_ssm
 plugin is installed and configured (Phase 5) — then scales to 1. Secrets are **not**
 owned by the stack — they live in SSM Parameter Store as namespaced
-SecureStrings that the user writes in Phase 3. This is the piranesi pattern: it
-keeps secrets out of template diffs and lets them survive stack deletes.
+SecureStrings that the user writes in Phase 3. This keeps
+secrets out of template diffs and lets them survive stack deletes.
 
 ## Prerequisites
 
@@ -815,8 +815,8 @@ Report to the user:
   layout works directly via host bind-mounts on the EBS volume — no custom
   `Dockerfile` or `entrypoint.sh` is needed. Do not build a derived image.
 
-- **Secrets live in SSM, not Secrets Manager.** Following the piranesi pattern,
-  secrets are namespaced SecureString parameters (`/dispatch/KEY`) that the user
+- **Secrets live in SSM, not Secrets Manager.**
+  Secrets are namespaced SecureString parameters (`/dispatch/KEY`) that the user
   writes. The `/dispatch/` namespace is hardcoded in the template so the
   deployer IAM policy can pin `parameter/dispatch/*`. They are not
   CloudFormation resources, so stack updates never clobber their values and

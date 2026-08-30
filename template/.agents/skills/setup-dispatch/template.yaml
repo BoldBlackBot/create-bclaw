@@ -263,14 +263,14 @@ Resources:
       TargetKeyId: !Ref SsmKmsKey
 
   # ── Secrets are NOT CloudFormation resources ──────────────────────────────
-  # Following the piranesi pattern, secrets live in SSM Parameter Store as
+  # Secrets live in SSM Parameter Store as
   # namespaced SecureString parameters (e.g. /dispatch/OPENROUTER_API_KEY) that
   # the USER writes in a skill phase (Phase 2) before the service scales up.
   # They are not owned by this stack, so they survive stack deletes and stack
   # updates never clobber their values.
   #
-  # Secrets live as SSM SecureString parameters under /dispatch/ (the piranesi
-  # pattern) and are NOT CloudFormation resources, so they survive stack
+  # Secrets live as SSM SecureString parameters under /dispatch/ and are NOT
+  # CloudFormation resources, so they survive stack
   # updates/deletes. They reach the container two ways:
   #
   #   1. aws_ssm secret-source plugin (hermes-aws-ssm-secret-source) — resolves
